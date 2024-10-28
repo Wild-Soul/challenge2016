@@ -2,6 +2,7 @@ package loader
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 
@@ -18,6 +19,7 @@ func LoadPermissions(filename string, repo repository.DistributorRepository) err
 
 	scanner := bufio.NewScanner(file)
 	var currentDist *domain.Distributor
+	var distributorsMap = make(map[string]*domain.Distributor)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -34,7 +36,7 @@ func LoadPermissions(filename string, repo repository.DistributorRepository) err
 				parentName = parts[4]
 				// Validate parent exists
 				if _, err := repo.Find(parentName); err != nil {
-					return domain.ErrInvalidParent
+					return fmt.Errorf("invalid parent distributor '%s': %w", parentName, domain.ErrInvalidParent)
 				}
 			}
 
@@ -52,6 +54,13 @@ func LoadPermissions(filename string, repo repository.DistributorRepository) err
 			if err := currentDist.UpdatePermission(location, isInclude); err != nil {
 				return err
 			}
+		}
+	}
+
+	// Now store all distributors after loading them
+	for _, dist := range distributorsMap {
+		if err := repo.Store(dist); err != nil {
+			return err
 		}
 	}
 

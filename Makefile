@@ -28,5 +28,5 @@ run: build
 	./$(BUILD_DIR)/$(BINARY_NAME) \
 		-csv ./data/cities.csv \
 		-perm ./data/permissions.txt \
-		-dist "DISTRIBUTOR1" \
-		-check "CENAI-TN-IN"
+		-dist "DISTRIBUTOR2" \
+		-check "RANCH-JH-IN"

@@ -1,10 +1,9 @@
 package service
 
 import (
-	"strings"
-
 	"distributor/internal/domain"
 	"distributor/internal/repository"
+	"strings"
 )
 
 type PermissionService struct {
@@ -38,40 +37,39 @@ func (s *PermissionService) CheckPermission(distributorName, location string) (b
 }
 
 func (s *PermissionService) hasPermission(dist *domain.Distributor, location string) (bool, error) {
-	// Check parent permissions first
-	if dist.Parent != "" {
-		parent, err := s.distributorRepo.Find(dist.Parent)
-		if err != nil {
-			return false, err
-		}
-		hasParentPerm, err := s.hasPermission(parent, location)
-		if err != nil || !hasParentPerm {
-			return false, err
-		}
-	}
-
 	locationParts := strings.Split(location, "-")
 
 	// Check excludes first
 	for excluded := range dist.Excludes {
 		excludedParts := strings.Split(excluded, "-")
 		if isLocationMatch(locationParts, excludedParts) {
-			return false, nil
+			return false, nil // Denied if the location matches any exclusion
 		}
 	}
 
-	// Check includes
+	// Check parent, as their exlude is also applied to children.
+	if dist.Parent != "" {
+		parent, err := s.distributorRepo.Find(dist.Parent)
+		if err != nil {
+			return false, err
+		}
+		return s.hasPermission(parent, location)
+	}
+
+	// Finally check includes of the distributor.
 	for included := range dist.Includes {
 		includedParts := strings.Split(included, "-")
 		if isLocationMatch(locationParts, includedParts) {
-			return true, nil
+			return true, nil // Granted if the location matches any inclusion
 		}
 	}
 
+	// If no permissions match and no parent exists
 	return false, nil
 }
 
 func isLocationMatch(location, pattern []string) bool {
+	// Allow matching based on the hierarchical structure
 	if len(pattern) > len(location) {
 		return false
 	}
@@ -82,5 +80,10 @@ func isLocationMatch(location, pattern []string) bool {
 		}
 	}
 
-	return true
+	// If pattern is shorter or equal, we can also allow broader matches
+	if len(pattern) < len(location) {
+		return true
+	}
+
+	return false
 }
